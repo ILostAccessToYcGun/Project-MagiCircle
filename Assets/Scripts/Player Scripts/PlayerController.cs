@@ -16,6 +16,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] float followDistance;
     [SerializeField] float XOffset;
     [SerializeField] float YOffset;
+    [SerializeField] float sensitivity;
+    [Space]
+    [Header("Magic")]
+    [SerializeField] GameObject magicCircle;
+
+
+    #region _Movement_
 
     private void LateralMovement()
     {
@@ -24,8 +31,8 @@ public class PlayerController : MonoBehaviour
         float currentAngle = Mathf.Asin(transform.rotation.y) * 2;
         float wAngleFlip = (transform.rotation.w < 0 ? -1 : 1);
 
-        float newXPos = transform.position.x + ((velocity.x * Time.deltaTime) * Mathf.Cos(currentAngle * -wAngleFlip)) + ((velocity.y * Time.deltaTime) * Mathf.Sin(currentAngle * wAngleFlip));
-        float newZPos = transform.position.z + ((velocity.x * Time.deltaTime) * Mathf.Sin(currentAngle * -wAngleFlip)) + ((velocity.y * Time.deltaTime) * Mathf.Cos(currentAngle * wAngleFlip));
+        float newXPos = transform.position.x + ((velocity.x * Time.fixedDeltaTime) * Mathf.Cos(currentAngle * -wAngleFlip)) + ((velocity.y * Time.fixedDeltaTime) * Mathf.Sin(currentAngle * wAngleFlip));
+        float newZPos = transform.position.z + ((velocity.x * Time.fixedDeltaTime) * Mathf.Sin(currentAngle * -wAngleFlip)) + ((velocity.y * Time.fixedDeltaTime) * Mathf.Cos(currentAngle * wAngleFlip));
         transform.position = new Vector3(newXPos, transform.position.y, newZPos);
     }
 
@@ -33,15 +40,14 @@ public class PlayerController : MonoBehaviour
     {
         if (!grounded)
         {
-            transform.position = new Vector3(transform.position.x, transform.position.y + (-gravity * Time.deltaTime), transform.position.z);
-            gravity += 9.8f * Time.deltaTime;
+            transform.position = new Vector3(transform.position.x, transform.position.y + (-gravity * Time.fixedDeltaTime), transform.position.z);
+            gravity += 9.8f * Time.fixedDeltaTime;
         }
         else
-        {
             gravity = 2.45f;
-        }
-            
     }
+
+    #endregion
 
     #region _Control_Methods_
     public void OnJump()
@@ -57,44 +63,30 @@ public class PlayerController : MonoBehaviour
 
     public void OnLook(InputValue value)
     {
-        transform.Rotate(new Vector3(0, value.Get<Vector2>().x * Time.deltaTime * 20f, 0));
-        //Debug.Log(value.Get<Vector2>());
-
-        //camera value.Get<Vector2>().y * Time.deltaTime
-        //cam.transform.RotateAround(transform.right, value.Get<Vector2>().y * Time.deltaTime * 10f);
-
-        Debug.Log(cam.transform.rotation);
+        transform.Rotate(new Vector3(0, value.Get<Vector2>().x * Time.fixedDeltaTime * 20f * sensitivity, 0));
 
         //https://discussions.unity.com/t/please-explain-quaternions/96863/3
-        //if we are past the good angles and the value is bad, dont let it happen
-        //if (cam.transform.eulerAngles.x > 90 && value.Get<Vector2>().y > 0)
-        //{
-        //    //bad stinky
-        //    Debug.Log("too far down");
-        //}
-        //else if (cam.transform.eulerAngles.x < 0 && value.Get<Vector2>().y < 0)
-        //{
-        //    Debug.Log("too far up");
-        //}
-
 
         //if the X component of the quarternion is greater than 0.70710678118 bad
         //if the X component of the quarternion is less than -0.70710678118 bad
 
-        //cam.transform.Rotate(value.Get<Vector2>().y * Time.deltaTime * -10f, 0, 0);
 
-        Quaternion angle = new Quaternion( Mathf.Clamp(cam.transform.localRotation.x + -value.Get<Vector2>().y * Time.deltaTime / 2 , -0.25f, 0.6f), 0, 0, cam.transform.localRotation.w).normalized;
+        Quaternion angle = new Quaternion( Mathf.Clamp(cam.transform.localRotation.x + -value.Get<Vector2>().y * Time.fixedDeltaTime / 3 * sensitivity, -0.25f, 0.6f), 0, 0, cam.transform.localRotation.w).normalized;
         cam.transform.localRotation = angle;
-
-        //cam.transform.eulerAngles = new Vector3(90, 0, 0);
-
-        //unit circle stuff
-        //when angle is 0, z is maximum, when angle is 90, y is maximum
-        //cos 0 = 1, sin 90 = 1;
 
         cam.transform.localPosition = new Vector3(XOffset, (Mathf.Sin(cam.transform.eulerAngles.x * Mathf.Deg2Rad) * followDistance) + YOffset, -Mathf.Cos(cam.transform.eulerAngles.x * Mathf.Deg2Rad) * followDistance);
     }
 
+
+    public void OnCastSpell()
+    {
+        Debug.Log("woah magic");
+        MagicCircle mc = Instantiate(magicCircle, this.transform.position + new Vector3(Mathf.Sin(transform.eulerAngles.y * Mathf.Deg2Rad) * 2f, 0, Mathf.Cos(transform.eulerAngles.y * Mathf.Deg2Rad) * 2f), transform.rotation, this.transform).GetComponent<MagicCircle>();
+        mc.ExecuteMagic();
+        //so when the player clicks, they will cast the spell (for now)
+        //im trying to decide whether or not the magic circles will be scriptable objects, i dont think so.
+        //i think they will just be noremal objects because they will have a visible form, direction/transform and may have differnet colours and sizes
+    }
 
     #endregion
 
@@ -104,11 +96,10 @@ public class PlayerController : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;
     }
-    void Update()
+    void FixedUpdate()
     {
         LateralMovement();
         Gravity();
-        //Debug.Log(transform.rotation);
     }
 
     private void OnCollisionStay(Collision collision)
